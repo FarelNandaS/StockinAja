@@ -11,7 +11,6 @@ import {
     getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
-import { PlusCircleIcon } from 'lucide-react';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,15 +26,18 @@ import { Input } from './ui/input';
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
-    withAddButton?: boolean;
-    addButtonText?: string;
+    withSideSearchElement?: boolean;
+    sideSearchElement?: React.ReactNode;
+    children?: React.ReactNode;
+    meta?: Record<string, any>;
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
-    withAddButton = false,
-    addButtonText,
+    withSideSearchElement,
+    sideSearchElement,
+    meta,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] =
@@ -50,6 +52,8 @@ export function DataTable<TData, TValue>({
         getSortedRowModel: getSortedRowModel(),
         onColumnFiltersChange: setColumnFilters,
         getFilteredRowModel: getFilteredRowModel(),
+        enableColumnResizing: true,
+        meta: meta,
         state: {
             sorting,
             columnFilters,
@@ -72,12 +76,7 @@ export function DataTable<TData, TValue>({
                     }
                     className="max-w-sm"
                 />
-                {withAddButton == true ? (
-                    <Button>
-                        <PlusCircleIcon />
-                        {addButtonText}
-                    </Button>
-                ) : null}
+                {withSideSearchElement ? sideSearchElement : null}
             </div>
             <div className="overflow-hidden rounded-md border">
                 <Table>
