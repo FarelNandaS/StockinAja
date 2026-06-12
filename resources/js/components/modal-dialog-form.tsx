@@ -23,6 +23,7 @@ type props = {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     isSubmitting?: boolean;
+    className?: string;
 };
 
 export function ModalDialog({
@@ -36,11 +37,12 @@ export function ModalDialog({
     open,
     onOpenChange,
     isSubmitting,
+    className,
 }: props) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
-                <Button>
+                <Button className={className}>
                     {buttonIcon}
                     {buttonText}
                 </Button>
