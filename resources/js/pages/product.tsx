@@ -70,7 +70,7 @@ const columns: ColumnDef<Product>[] = [
             };
 
             return (
-                <div className="flex gap-4">
+                <div className="flex gap-4 w-20">
                     <Button
                         variant="destructive"
                         disabled={tableMeta?.isDeleting}
