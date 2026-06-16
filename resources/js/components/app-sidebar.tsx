@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { LayoutGrid, Package2, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 // import { NavFooter } from '@/components/nav-footer';
@@ -26,11 +26,13 @@ const mainNavItems: NavItem[] = [
         title: 'Product',
         href: product(),
         icon: Package2,
+        roles: ['Admin', 'Staff'],
     },
     {
         title: 'Users',
         href: users(),
         icon: Users,
+        roles: ['Admin'],
     },
 ];
 
@@ -48,6 +50,17 @@ const mainNavItems: NavItem[] = [
 // ];
 
 export function AppSidebar() {
+    const { auth } = usePage().props as any;
+    const userRoles = auth?.roles || [];
+
+    const filteredNav = mainNavItems.filter((items) => {
+        if (!items.roles) {
+            return true;
+        }
+
+        return items.roles.some((role) => userRoles.includes(role));
+    });
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -63,7 +76,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={filteredNav} />
             </SidebarContent>
 
             <SidebarFooter>

@@ -1,7 +1,14 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import type { ColumnDef } from '@tanstack/react-table';
 import axios from 'axios';
-import { ArrowUpDown, PencilLine, PlusCircleIcon, Trash2 } from 'lucide-react';
+import {
+    ArrowUpDown,
+    Minus,
+    PencilLine,
+    Plus,
+    PlusCircleIcon,
+    Trash2,
+} from 'lucide-react';
 import type { SyntheticEvent } from 'react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -67,32 +74,63 @@ const columns: ColumnDef<Product>[] = [
                 isDeleting?: boolean;
                 onDelete: (product: Product) => void;
                 onEdit: (product: Product) => void;
+                onManage: (product: Product, type: 'In' | 'Out') => void;
+                userRoles: string[];
             };
 
+            const userRoles = tableMeta?.userRoles || [];
+
             return (
-                <div className="flex gap-4 w-20">
-                    <Button
-                        variant="destructive"
-                        disabled={tableMeta?.isDeleting}
-                        onClick={() => {
-                            if (tableMeta?.onDelete) {
-                                tableMeta.onDelete(product);
-                            }
-                        }}
-                    >
-                        <Trash2 />
-                        Delete
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            if (tableMeta?.onEdit) {
-                                tableMeta.onEdit(product);
-                            }
-                        }}
-                    >
-                        <PencilLine />
-                        Edit
-                    </Button>
+                <div className="flex w-20 gap-4">
+                    {userRoles.includes('Admin') && (
+                        <>
+                            <Button
+                                variant="destructive"
+                                disabled={tableMeta?.isDeleting}
+                                onClick={() => {
+                                    if (tableMeta?.onDelete) {
+                                        tableMeta.onDelete(product);
+                                    }
+                                }}
+                            >
+                                <Trash2 />
+                                Delete
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    if (tableMeta?.onEdit) {
+                                        tableMeta.onEdit(product);
+                                    }
+                                }}
+                            >
+                                <PencilLine />
+                                Edit
+                            </Button>
+                        </>
+                    )}
+
+                    {userRoles.includes('Staff') && (
+                        <>
+                            <Button
+                                onClick={() => {
+                                    if (tableMeta?.onManage) {
+                                        tableMeta.onManage(product, 'In');
+                                    }
+                                }}
+                            >
+                                <Plus />
+                                Stock In
+                            </Button>
+                            <Button onClick={() => {
+                                if (tableMeta?.onManage) {
+                                    tableMeta.onManage(product, 'Out');
+                                }
+                            }}>
+                                <Minus />
+                                Stock Out
+                            </Button>
+                        </>
+                    )}
                 </div>
             );
         },
@@ -101,6 +139,9 @@ const columns: ColumnDef<Product>[] = [
 
 export default function Product({ products }: ProductPageProps) {
     const [data, setData] = useState(products);
+
+    const { auth } = usePage().props as any;
+    const userRoles = auth?.roles || [];
 
     const [name, setName] = useState('');
     const [quantity, setQuantity] = useState(0);
@@ -114,6 +155,12 @@ export default function Product({ products }: ProductPageProps) {
     const [editName, setEditName] = useState('');
     const [editQuantity, setEditQuantity] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
+
+    const [manageProductId, setManageProductId] = useState<number | null>(null);
+    const [manageType, setManageType] = useState('');
+    const [modalManageOpen, setModalManageOpen] = useState(false);
+    const [manageQuantity, setManageQuantity] = useState(0);
+    const [isManage, setIsManage] = useState(false);
 
     const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -230,7 +277,7 @@ export default function Product({ products }: ProductPageProps) {
             setData(response.data.products);
             setModalEditOpen(false);
 
-            productName = response.data.newName;
+            productName = response.data.name;
         } catch (err: any) {
             if (err.response) {
                 const errData = err.response.data;
@@ -254,6 +301,50 @@ export default function Product({ products }: ProductPageProps) {
         });
     };
 
+    const triggerHandleManage = (product: Product, type: 'In' | 'Out') => {
+        setManageProductId(product.id);
+        setManageType(type);
+        setModalManageOpen(true);
+    };
+
+    const handleManage = async (event: SyntheticEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setIsManage(true);
+        let productName = '';
+
+        try {
+            const response = await axios.patch(`/api/products/${manageProductId}`, {
+                'quantity': manageQuantity,
+                'type': manageType
+            });
+
+            setData(response.data.products);
+            setModalManageOpen(false);
+
+            productName = response.data.name;
+        } catch (err: any) {
+            if (err.response) {
+                const errData = err.response.data;
+
+                if (errData.status === 'error') {
+                    return toast.error('Error Editing Product', {
+                        description: errData.message,
+                    });
+                }
+            } else {
+                return toast.error('Error Editing Product', {
+                    description: 'Error unknown reason',
+                });
+            }
+        } finally {
+            setIsManage(false);
+        }
+        
+        return toast.success(`Success To Stock ${manageType} Product`, {
+            description: `Success to manage stock with name "${productName}"`
+        })
+    };
+
     return (
         <>
             <Head title="Product" />
@@ -265,6 +356,8 @@ export default function Product({ products }: ProductPageProps) {
                         isDeleting: isDeleting,
                         onDelete: handleDelete,
                         onEdit: triggerHandleEdit,
+                        onManage: triggerHandleManage,
+                        userRoles: userRoles,
                     }}
                     withSideSearchElement
                     sideSearchElement={
@@ -302,36 +395,62 @@ export default function Product({ products }: ProductPageProps) {
                     }
                 />
 
-                <ModalDialog
-                    title="Edit Product"
-                    btnTextSave="Update Product"
-                    onSubmit={handleEdit}
-                    open={modalEditOpen}
-                    onOpenChange={setModalEditOpen}
-                    isSubmitting={isEditing}
-                    className="hidden"
-                >
-                    <Field>
-                        <Label htmlFor="name">Name</Label>
-                        <Input
-                            id="name"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                        />
-                    </Field>
+                {userRoles.includes('Admin') && (
+                    <ModalDialog
+                        title="Edit Product"
+                        btnTextSave="Update Product"
+                        onSubmit={handleEdit}
+                        open={modalEditOpen}
+                        onOpenChange={setModalEditOpen}
+                        isSubmitting={isEditing}
+                        className="hidden"
+                    >
+                        <Field>
+                            <Label htmlFor="name">Name</Label>
+                            <Input
+                                id="name"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                            />
+                        </Field>
 
-                    <Field>
-                        <Label htmlFor="quantity">Quantity</Label>
-                        <Input
-                            id="quantity"
-                            type="number"
-                            value={editQuantity}
-                            onChange={(e) =>
-                                setEditQuantity(Number(e.target.value))
-                            }
-                        />
-                    </Field>
-                </ModalDialog>
+                        <Field>
+                            <Label htmlFor="quantity">Quantity</Label>
+                            <Input
+                                id="quantity"
+                                type="number"
+                                value={editQuantity}
+                                onChange={(e) =>
+                                    setEditQuantity(Number(e.target.value))
+                                }
+                            />
+                        </Field>
+                    </ModalDialog>
+                )}
+
+                {userRoles.includes('Staff') && (
+                    <ModalDialog
+                        title={`Stock ${manageType} Product`}
+                        btnTextSave={`Confirm stock ${manageType}`}
+                        isSubmitting={isManage}
+                        open={modalManageOpen}
+                        onOpenChange={setModalManageOpen}
+                        onSubmit={handleManage}
+                        className="hidden"
+                    >
+                        <Input id="type" value={manageType} type="hidden" />
+                        <Field>
+                            <Label htmlFor="quantity">Quantity</Label>
+                            <Input
+                                id="quantity"
+                                value={manageQuantity}
+                                onChange={(e) =>
+                                    setManageQuantity(Number(e.target.value))
+                                }
+                            />
+                        </Field>
+                    </ModalDialog>
+                )}
             </div>
         </>
     );

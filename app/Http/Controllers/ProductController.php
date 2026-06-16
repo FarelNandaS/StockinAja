@@ -63,11 +63,19 @@ class ProductController extends Controller
     }
 
     public function update(Request $request, $id) {
-        $validator = Validator::make(['id'=>$id, 'name'=>$request->name, 'quantity'=>$request->quantity], [
-            'id'=>'required',
-            'name'=>'required|string|max:255',
-            'quantity'=>'required|integer|min:0',
-        ]);
+        if (empty($request->type)) {
+            $validator = Validator::make(['id'=>$id, 'name'=>$request->name, 'quantity'=>$request->quantity], [
+                'id'=>'required',
+                'name'=>'required|string|max:255',
+                'quantity'=>'required|integer|min:0',
+            ]);
+        } else {
+            $validator = Validator::make(['id'=>$id, 'quantity'=>$request->quantity, 'type'=>$request->type], [
+                'id'=>'required',
+                'quantity'=>'required|integer|min:0',
+                'type'=>'required|in:In,Out'
+            ]);
+        }
 
         if ($validator->fails()) {
             return response()->json([
@@ -78,7 +86,6 @@ class ProductController extends Controller
 
         $validated = $validator->validated();
         $product = Product::find($validated['id']);
-        $oldName = $product->name;
 
         if (!$product) {
             return response()->json([
@@ -87,17 +94,36 @@ class ProductController extends Controller
             ], 422);
         }
 
-        $product->update([
-            'name'=>$validated['name'],
-            'quantity'=>$validated['quantity'],
-        ]);
-        $newName = $product->name;
+        if (empty($request->type)) {
+            $product->update([
+                'name'=>$validated['name'],
+                'quantity'=>$validated['quantity'],
+            ]);
+            $productName = $product->name;
+        } else {
+            $currentQuantity = $product->quantity;
+
+            if ($validated['type'] === 'In') {
+                $newQuantity = $currentQuantity + $validated['quantity'];
+            } else {
+                $newQuantity = $currentQuantity - $validated['quantity'];
+
+                if ($newQuantity < 0) {
+                    return response()->json([
+                        'status'=>'error',
+                        'message'=>'Insufficient stock! Current stock only remaining ' . $currentQuantity,
+                    ], 422);
+                }
+            }
+
+            $product->update(['quantity'=>$newQuantity]);
+            $productName = $product->name;
+        }
 
         $resData = Product::all()->toArray();
 
         return response()->json([
-            'oldName'=>$oldName,
-            'newName'=>$newName,
+            'name'=>$productName,
             'products'=>$resData,
         ]);
     }
