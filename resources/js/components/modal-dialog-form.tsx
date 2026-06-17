@@ -23,7 +23,10 @@ type props = {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     isSubmitting?: boolean;
-    className?: string;
+    BtnClassName?: string;
+    hiddenBtnSubmit?: boolean;
+    withFooter?: boolean;
+    contentClassName?: string;
 };
 
 export function ModalDialog({
@@ -37,28 +40,31 @@ export function ModalDialog({
     open,
     onOpenChange,
     isSubmitting,
-    className,
+    BtnClassName,
+    hiddenBtnSubmit = false,
+    withFooter = true,
+    contentClassName,
 }: props) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
-                <Button className={className}>
+                <Button className={BtnClassName}>
                     {buttonIcon}
                     {buttonText}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-sm">
+            <DialogContent className={contentClassName ? contentClassName : "sm:max-w-sm"}>
                 <form className="flex flex-col gap-4" onSubmit={onSubmit}>
                     <DialogHeader>
                         <DialogTitle>{title}</DialogTitle>
                         <DialogDescription>{description}</DialogDescription>
                     </DialogHeader>
                     {children}
-                    <DialogFooter>
+                    <DialogFooter className={withFooter ? '' : 'hidden'}>
                         <DialogClose asChild>
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
-                        <Button type="submit" disabled={isSubmitting}>
+                        <Button type="submit" disabled={isSubmitting} className={hiddenBtnSubmit ? 'hidden' : ''}>
                             {isSubmitting ? (
                                 <>
                                     <Spinner data-icon="inline-start" />

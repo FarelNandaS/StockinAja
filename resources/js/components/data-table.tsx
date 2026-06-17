@@ -26,6 +26,7 @@ import { Input } from './ui/input';
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
+    withSearch?: boolean;
     withSideSearchElement?: boolean;
     sideSearchElement?: React.ReactNode;
     children?: React.ReactNode;
@@ -35,6 +36,7 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
     columns,
     data,
+    withSearch = true,
     withSideSearchElement,
     sideSearchElement,
     meta,
@@ -62,7 +64,7 @@ export function DataTable<TData, TValue>({
 
     return (
         <div>
-            <div className="flex items-center justify-between py-4">
+            <div className={`flex items-center justify-between py-4 ${withSearch ? '' : 'hidden'}`}>
                 <Input
                     placeholder="Filter name..."
                     value={

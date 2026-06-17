@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import axios from 'axios';
 import {
     ArrowUpDown,
+    HistoryIcon,
     Minus,
     PencilLine,
     Plus,
@@ -75,13 +76,14 @@ const columns: ColumnDef<Product>[] = [
                 onDelete: (product: Product) => void;
                 onEdit: (product: Product) => void;
                 onManage: (product: Product, type: 'In' | 'Out') => void;
+                onLog: (produc: Product) => void;
                 userRoles: string[];
             };
 
             const userRoles = tableMeta?.userRoles || [];
 
             return (
-                <div className="flex w-20 gap-4">
+                <div className="flex w-28 gap-4">
                     {userRoles.includes('Admin') && (
                         <>
                             <Button
@@ -121,16 +123,57 @@ const columns: ColumnDef<Product>[] = [
                                 <Plus />
                                 Stock In
                             </Button>
-                            <Button onClick={() => {
-                                if (tableMeta?.onManage) {
-                                    tableMeta.onManage(product, 'Out');
-                                }
-                            }}>
+                            <Button
+                                onClick={() => {
+                                    if (tableMeta?.onManage) {
+                                        tableMeta.onManage(product, 'Out');
+                                    }
+                                }}
+                            >
                                 <Minus />
                                 Stock Out
                             </Button>
                         </>
                     )}
+
+                    <Button
+                        onClick={() => {
+                            if (tableMeta?.onLog) {
+                                tableMeta.onLog(product);
+                            }
+                        }}
+                    >
+                        <HistoryIcon />
+                        Log
+                    </Button>
+                </div>
+            );
+        },
+    },
+];
+
+type Mutation = {
+    date: string;
+    type: string;
+    amount: number;
+    balance: string;
+    note: string;
+};
+
+const columnsLog: ColumnDef<Mutation>[] = [
+    { accessorKey: 'date', header: 'Date' },
+    { accessorKey: 'type', header: 'Type' },
+    { accessorKey: 'amount', header: 'Amount' },
+    { accessorKey: 'balance', header: 'Balance' },
+    {
+        accessorKey: 'note',
+        header: 'Note',
+        cell: ({ row }) => {
+            const log = row.original;
+
+            return (
+                <div className="max-w-[350px] min-w-[250px] text-sm break-words whitespace-normal">
+                    {log.note}
                 </div>
             );
         },
@@ -161,6 +204,12 @@ export default function Product({ products }: ProductPageProps) {
     const [modalManageOpen, setModalManageOpen] = useState(false);
     const [manageQuantity, setManageQuantity] = useState(0);
     const [isManage, setIsManage] = useState(false);
+
+    const [modalLogOpen, setModalLogOpen] = useState(false);
+    const [isLoadLog, setIsLoadLog] = useState(false);
+    const [selectedLogProduct, setSelectedLogProduct] = useState<Mutation[]>(
+        [],
+    );
 
     const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -313,10 +362,13 @@ export default function Product({ products }: ProductPageProps) {
         let productName = '';
 
         try {
-            const response = await axios.patch(`/api/products/${manageProductId}`, {
-                'quantity': manageQuantity,
-                'type': manageType
-            });
+            const response = await axios.patch(
+                `/api/products/${manageProductId}`,
+                {
+                    quantity: manageQuantity,
+                    type: manageType,
+                },
+            );
 
             setData(response.data.products);
             setModalManageOpen(false);
@@ -339,10 +391,30 @@ export default function Product({ products }: ProductPageProps) {
         } finally {
             setIsManage(false);
         }
-        
+
         return toast.success(`Success To Stock ${manageType} Product`, {
-            description: `Success to manage stock with name "${productName}"`
-        })
+            description: `Success to manage stock with name "${productName}"`,
+        });
+    };
+
+    const triggerHandleLog = async (product: Product) => {
+        setModalLogOpen(true);
+        setIsLoadLog(true);
+
+        try {
+            const response = await axios.get(
+                `/api/products/${product.id}/mutations`,
+            );
+            setSelectedLogProduct(response.data.mutations);
+        } catch (err: any) {
+            if (err.response) {
+                toast.error('Error Geting Mutations Data', {
+                    description: err.response.data.message,
+                });
+            }
+        } finally {
+            setIsLoadLog(false);
+        }
     };
 
     return (
@@ -357,6 +429,7 @@ export default function Product({ products }: ProductPageProps) {
                         onDelete: handleDelete,
                         onEdit: triggerHandleEdit,
                         onManage: triggerHandleManage,
+                        onLog: triggerHandleLog,
                         userRoles: userRoles,
                     }}
                     withSideSearchElement
@@ -403,7 +476,7 @@ export default function Product({ products }: ProductPageProps) {
                         open={modalEditOpen}
                         onOpenChange={setModalEditOpen}
                         isSubmitting={isEditing}
-                        className="hidden"
+                        BtnClassName="hidden"
                     >
                         <Field>
                             <Label htmlFor="name">Name</Label>
@@ -436,7 +509,7 @@ export default function Product({ products }: ProductPageProps) {
                         open={modalManageOpen}
                         onOpenChange={setModalManageOpen}
                         onSubmit={handleManage}
-                        className="hidden"
+                        BtnClassName="hidden"
                     >
                         <Input id="type" value={manageType} type="hidden" />
                         <Field>
@@ -451,6 +524,34 @@ export default function Product({ products }: ProductPageProps) {
                         </Field>
                     </ModalDialog>
                 )}
+
+                <ModalDialog
+                    hiddenBtnSubmit={true}
+                    BtnClassName="hidden"
+                    withFooter={false}
+                    title="Log Product"
+                    open={modalLogOpen}
+                    onOpenChange={setModalLogOpen}
+                    contentClassName="sm:max-w-3xl w-full"
+                >
+                    {isLoadLog ? (
+                        <p className="py-4 text-center text-sm text-muted-foreground">
+                            Load history...
+                        </p>
+                    ) : selectedLogProduct.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-muted-foreground">
+                            There is no mutation history for this product.
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <DataTable
+                                columns={columnsLog}
+                                data={selectedLogProduct}
+                                withSearch={false}
+                            />
+                        </div>
+                    )}
+                </ModalDialog>
             </div>
         </>
     );

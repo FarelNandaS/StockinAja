@@ -21,6 +21,7 @@ Route::prefix('api')->middleware(['api','throttle:60,1'])->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
     Route::patch('/products/{id}', [ProductController::class, 'update']);
+    Route::get('/products/{id}/mutations', [ProductController::class, 'getMutations']);
 
     Route::post('/users', [UserController::class, 'store']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);

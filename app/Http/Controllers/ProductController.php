@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\StockMutations;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
     public function store(Request $request) {
+        DB::beginTransaction();
+
         $validator = Validator::make($request->all(), [
             'name'=>'required|string|max:255',
             'quantity'=>'required|integer|min:0'
@@ -21,8 +26,21 @@ class ProductController extends Controller
             ], 422);
         }
 
-        Product::create($validator->validated());
+        $product = Product::create($validator->validated());
+
+        StockMutations::create([
+            'product_id'=>$product->id,
+            'user_id'=>Auth::id(),
+            'type'=>'In',
+            'amount'=>$request->quantity,
+            'initial_quantity'=>0,
+            'final_quantity'=>$request->quantity,
+            'notes'=>'New product create by admin'
+        ]);
+
         $resData = Product::all()->toArray();
+
+        DB::commit();
 
         return response()->json([
             'name'=>$validator->getData()['name'],
@@ -31,6 +49,8 @@ class ProductController extends Controller
     }
 
     public function destroy(Request $request, $id) {
+        DB::beginTransaction();
+
         $validator = Validator::make(['id'=>$id], [
             'id'=>'required'
         ]);
@@ -56,6 +76,8 @@ class ProductController extends Controller
         $product->delete();
         $resData = Product::all()->toArray();
 
+        DB::commit();
+
         return response()->json([
             'name'=>$productName,
             'products'=>$resData,
@@ -63,6 +85,8 @@ class ProductController extends Controller
     }
 
     public function update(Request $request, $id) {
+        DB::beginTransaction();
+
         if (empty($request->type)) {
             $validator = Validator::make(['id'=>$id, 'name'=>$request->name, 'quantity'=>$request->quantity], [
                 'id'=>'required',
@@ -95,10 +119,26 @@ class ProductController extends Controller
         }
 
         if (empty($request->type)) {
+            $oldQuantity = $product->quantity;
+            $diff = $validated['quantity'] - $product->quantity;
+
             $product->update([
                 'name'=>$validated['name'],
                 'quantity'=>$validated['quantity'],
             ]);
+
+            if ($oldQuantity != $validated['quantity']) {
+                StockMutations::create([
+                    'product_id'=>$product->id,
+                    'user_id'=>auth()->id(),
+                    'type'=>$diff > 0 ? 'In' : 'Out',
+                    'amount'=>abs($diff),
+                    'initial_quantity'=>$oldQuantity,
+                    'final_quantity'=>$product->quantity,
+                    'notes'=>'Stock adjustment by admin (Stock opname)'
+                ]);
+            }
+
             $productName = $product->name;
         } else {
             $currentQuantity = $product->quantity;
@@ -117,14 +157,43 @@ class ProductController extends Controller
             }
 
             $product->update(['quantity'=>$newQuantity]);
+
+            StockMutations::create([
+                'product_id'=>$product->id,
+                'user_id'=>auth()->id(),
+                'type'=>$validated['type'],
+                'amount'=>$validated['quantity'],
+                'initial_quantity'=>$currentQuantity,
+                'final_quantity'=>$newQuantity,
+                'notes'=>'User with name ' . auth()->user()->name . ' manage the stock with note: ' . ($request->notes ?? 'No notes provide'),
+            ]);
+
             $productName = $product->name;
         }
 
         $resData = Product::all()->toArray();
 
+        DB::commit();
+
         return response()->json([
             'name'=>$productName,
             'products'=>$resData,
+        ]);
+    }
+
+    public function getMutations($id) {
+        $mutations = StockMutations::where('product_id', $id)->orderBy('created_at', 'desc')->get()->map(function ($log) {
+            return [
+                'date'=>$log->created_at->diffForHumans(),
+                'type'=>$log->type,
+                'amount'=>$log->amount,
+                'balance'=>$log->initial_quantity . ' -> ' . $log->final_quantity,
+                'note'=>$log->notes,
+            ];
+        });
+
+        return response()->json([
+            'mutations'=>$mutations,
         ]);
     }
 }
