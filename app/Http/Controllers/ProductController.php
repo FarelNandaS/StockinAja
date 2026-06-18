@@ -184,7 +184,7 @@ class ProductController extends Controller
     public function getMutations($id) {
         $mutations = StockMutations::where('product_id', $id)->orderBy('created_at', 'desc')->get()->map(function ($log) {
             return [
-                'date'=>$log->created_at->diffForHumans(),
+                'date'=>$log->created_at->format('d/m/Y'),
                 'type'=>$log->type,
                 'amount'=>$log->amount,
                 'balance'=>$log->initial_quantity . ' -> ' . $log->final_quantity,

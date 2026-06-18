@@ -335,7 +335,7 @@ export default function Users({ users }: usersPageProps) {
                 />
 
                 <ModalDialog
-                    className="hidden"
+                    BtnClassName="hidden"
                     title="Edit User"
                     btnTextSave="Update User"
                     isSubmitting={isEditing}
