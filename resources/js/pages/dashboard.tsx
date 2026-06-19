@@ -1,14 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
-import { dashboard } from '@/routes';
-import {
-    ChartConfig,
-    ChartContainer,
-    ChartLegend,
-    ChartLegendContent,
-    ChartTooltip,
-    ChartTooltipContent,
-} from '@/components/ui/chart';
+import { useEcho } from '@laravel/echo-react';
+import { ArrowDownRight, ArrowUpRight, Package } from 'lucide-react';
+import { useState } from 'react';
 import {
     CartesianGrid,
     LabelList,
@@ -18,7 +11,15 @@ import {
     YAxis,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowDownRight, ArrowUpRight, Package } from 'lucide-react';
+import type {ChartConfig} from '@/components/ui/chart';
+import {
+    ChartContainer,
+    ChartLegend,
+    ChartLegendContent,
+    ChartTooltip,
+    ChartTooltipContent,
+} from '@/components/ui/chart';
+import { dashboard } from '@/routes';
 
 type dashboardPageProps = {
     chartData: object[];
@@ -30,13 +31,18 @@ type dashboardPageProps = {
 };
 
 export default function Dashboard({
-    chartData,
+    chartData: initialChartData,
     productsName,
     productsCount,
-    stockIn,
-    stockOut,
-    mutations,
+    stockIn: initialStockIn,
+    stockOut: initialStockOut,
+    mutations: initialMutations,
 }: dashboardPageProps) {
+    const [chartData, setChartData] = useState(initialChartData);
+    const [stockIn, setStockIn] = useState(initialStockIn);
+    const [stockOut, setStockOut] = useState(initialStockOut);
+    const [mutations, setMutations] = useState(initialMutations);
+
     const chartConfig: ChartConfig = {};
     const colorPalette = ['1', '2', '3', '4', '5'];
 
@@ -47,6 +53,17 @@ export default function Dashboard({
             label: name,
             color: `hsl(var(--chart-${colorIndex}))`,
         };
+    });
+
+    useEcho('dashboard-gudang', '.stock.mutated', (e: { dashboardData: any }) => {
+        console.log('WS Aktif, Menerima Data Dashboard Baru:', e.dashboardData);
+        
+        const data = e.dashboardData;
+
+        setMutations(data.mutations);
+        setStockIn(data.stockIn);
+        setStockOut(data.stockOut);
+        setChartData(data.chartData);
     });
 
     return (

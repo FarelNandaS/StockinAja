@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\StockMutationCreated;
+use App\Jobs\ProcessDashboardBrodcast;
 use App\Models\Product;
 use App\Models\StockMutations;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -28,7 +31,7 @@ class ProductController extends Controller
 
         $product = Product::create($validator->validated());
 
-        StockMutations::create([
+        $mutation = StockMutations::create([
             'product_id'=>$product->id,
             'user_id'=>Auth::id(),
             'type'=>'In',
@@ -41,6 +44,8 @@ class ProductController extends Controller
         $resData = Product::all()->toArray();
 
         DB::commit();
+
+        ProcessDashboardBrodcast::dispatch();
 
         return response()->json([
             'name'=>$validator->getData()['name'],
@@ -158,7 +163,7 @@ class ProductController extends Controller
 
             $product->update(['quantity'=>$newQuantity]);
 
-            StockMutations::create([
+            $mutation = StockMutations::create([
                 'product_id'=>$product->id,
                 'user_id'=>auth()->id(),
                 'type'=>$validated['type'],
@@ -174,6 +179,8 @@ class ProductController extends Controller
         $resData = Product::all()->toArray();
 
         DB::commit();
+
+        ProcessDashboardBrodcast::dispatch();
 
         return response()->json([
             'name'=>$productName,
