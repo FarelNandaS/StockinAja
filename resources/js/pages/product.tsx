@@ -83,7 +83,7 @@ const columns: ColumnDef<Product>[] = [
             const userRoles = tableMeta?.userRoles || [];
 
             return (
-                <div className="flex w-28 gap-4">
+                <div className="flex w-36 gap-4">
                     {userRoles.includes('Admin') && (
                         <>
                             <Button
@@ -434,37 +434,41 @@ export default function Product({ products }: ProductPageProps) {
                     }}
                     withSideSearchElement
                     sideSearchElement={
-                        <ModalDialog
-                            buttonIcon={<PlusCircleIcon />}
-                            buttonText="Add Product"
-                            title="Add Product"
-                            btnTextSave="Save Product"
-                            onSubmit={handleSubmit}
-                            open={modalOpen}
-                            onOpenChange={setModalOpen}
-                            isSubmitting={isSubmitting}
-                        >
-                            <Field>
-                                <Label htmlFor="name">Name</Label>
-                                <Input
-                                    id="name"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
-                            </Field>
+                        userRoles.includes('Admin') && (
+                            <ModalDialog
+                                buttonIcon={<PlusCircleIcon />}
+                                buttonText="Add Product"
+                                title="Add Product"
+                                btnTextSave="Save Product"
+                                onSubmit={handleSubmit}
+                                open={modalOpen}
+                                onOpenChange={setModalOpen}
+                                isSubmitting={isSubmitting}
+                            >
+                                <Field>
+                                    <Label htmlFor="name">Name</Label>
+                                    <Input
+                                        id="name"
+                                        value={name}
+                                        onChange={(e) =>
+                                            setName(e.target.value)
+                                        }
+                                    />
+                                </Field>
 
-                            <Field>
-                                <Label htmlFor="quantity">Quantity</Label>
-                                <Input
-                                    id="quantity"
-                                    type="number"
-                                    value={quantity}
-                                    onChange={(e) =>
-                                        setQuantity(Number(e.target.value))
-                                    }
-                                />
-                            </Field>
-                        </ModalDialog>
+                                <Field>
+                                    <Label htmlFor="quantity">Quantity</Label>
+                                    <Input
+                                        id="quantity"
+                                        type="number"
+                                        value={quantity}
+                                        onChange={(e) =>
+                                            setQuantity(Number(e.target.value))
+                                        }
+                                    />
+                                </Field>
+                            </ModalDialog>
+                        )
                     }
                 />
 
